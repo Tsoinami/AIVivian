@@ -38,16 +38,26 @@ public class MyAI extends Agent
 	private boolean arrowFired;
 	private boolean goldGot;
 	private boolean wumpusDead;
+	private String lastAction;
+	private String agentStatus;
+
+	//edgeWalking AI
+	private int botCount;
+	private int rightCount;
+	private int topCount;
+	private int leftCount;
 	public MyAI ( )
 	{
 		// ======================================================================
 		// YOUR CODE BEGINS
 		// ======================================================================
+		botCount = 0; rightCount = 0; topCount = 0; leftCount = 0;agentStatus = "EXPLORING";
+		
 		arrowFired = false; goldGot = false; wumpusDead = false;
 		outOfBoundTile = new Tile(); outOfBoundTile.outOfBounds = true;
                 board = new Tile[10][10];
 		agentX = 0;agentY = 0;agentMoved = false;
-		agentDirection = 3;
+		agentDirection = 2;
 		for ( int r = 0; r < 10; ++r )
                                 for ( int c = 0; c < 10; ++c )
                                         board[r][c] = new Tile();
@@ -70,8 +80,26 @@ public class MyAI extends Agent
 		// YOUR CODE BEGINS
 		// ======================================================================
 		// Only function called by main
-		updateState(stench, breeze, glitter, bump, scream);
-		printBoardInfo();
+		//updateState(stench, breeze, glitter, bump, scream);
+		String myAction = getDirection(stench, breeze, glitter, bump, scream);
+		if (myAction.equals("FORWARD")) commitAction(myAction);
+		System.out.println("testing bump walls on return: " + Boolean.toString(botCount == 0) + " " + Boolean.toString(agentStatus.equals("EXITING")));
+		System.out.println(myAction.equals("FORWARD"));
+		System.out.println(agentStatus.equals("EXPLORING"));
+		System.out.println("bot right top left ");
+		System.out.println(Integer.toString(botCount) + " "+ Integer.toString(rightCount) + " " + Integer.toString(topCount) + " " + Integer.toString(leftCount));
+		System.out.println("agentStatus: " + agentStatus);
+		System.out.println("Agent Direction: " + Integer.toString(agentDirection));
+		System.out.println("Going to commit action: " + myAction);
+		switch (myAction)
+		{
+			case "FORWARD":  return Action.FORWARD;
+			case "TURN_LEFT": return Action.TURN_LEFT;
+                        case "TURN_RIGHT": return Action.TURN_RIGHT;
+                        case "SHOOT": return Action.SHOOT;
+                        case "GRAB": return Action.GRAB;
+                        case "CLIMB": return Action.CLIMB;
+		}
 		return Action.CLIMB;
 		// ======================================================================
 		// YOUR CODE ENDS
@@ -81,6 +109,88 @@ public class MyAI extends Agent
 	// ======================================================================
 	// YOUR CODE BEGINS
 	// ======================================================================
+	private void commitAction(String action)
+	{
+		if (action.equals("FORWARD"))
+		{
+			if (agentStatus.equals("EXPLORING"))
+			{
+				if (agentDirection == 2)	botCount += 1;
+				else if (agentDirection == 1)	rightCount += 1;
+				else if (agentDirection == 0)	topCount += 1;
+				else leftCount += 1; 
+			}
+			else
+			{
+				if (agentDirection == 0) botCount -= 1;
+				else if (agentDirection == 3) rightCount -= 1;
+				else if (agentDirection == 2) topCount -= 1;
+				else leftCount -= 1;
+			}
+		}
+	}
+	private String getDirection
+		(
+		boolean stench,
+                boolean breeze,
+                boolean glitter,
+                boolean bump,
+                boolean scream
+		)
+	{
+		if (agentDirection == 4) agentDirection = 0;
+		if (bump) {if (agentDirection == 2) botCount -= 1;
+                                else if (agentDirection == 1) rightCount -= 1;
+                                else if (agentDirection == 0) topCount -= 1;
+                                else leftCount -= 1;}
+		if (breeze) agentStatus = "BREEZE"; if (scream) wumpusDead = true;
+		if (stench && arrowFired && !wumpusDead) agentStatus = "EXITING";
+		if (glitter && !goldGot) {lastAction = "GRAB"; goldGot = true; agentStatus = "EXITING";return "GRAB";}
+		if (stench && !arrowFired &&  !breeze && !agentStatus.equals("EXITING")) {
+			lastAction = "SHOOT";
+			arrowFired = true;
+			return "SHOOT";
+		}
+		if (botCount == 0 && agentStatus.equals("EXITING"))
+			return "CLIMB";
+		if (agentStatus.equals("EXPLORING")) 
+		{
+			if (botCount > 0 && rightCount == 0 && bump)
+			{ agentDirection -=1; lastAction = "TURN_LEFT"; return "TURN_LEFT";}
+			if (botCount > 0 && rightCount > 0 && topCount == 0 && bump)
+			{ agentDirection -=1; lastAction = "TURN_LEFT"; return "TURN_LEFT";}
+			if (botCount > 0 && rightCount > 0 && topCount > 0 && leftCount == 0 && bump)
+                                {agentDirection = 3; lastAction = "TURN_LEFT"; return "TURN_LEFT";}
+			if (botCount > 0 && rightCount > 0 && topCount > 0 && leftCount > 0 && leftCount == rightCount)
+				return "CLIMB";
+		}
+		else if (agentStatus.equals("EXITING"))
+		{
+			if (botCount == 0) return "CLIMB";
+			if (botCount > 0 && rightCount == 0  && agentDirection != 0)
+                        { agentDirection +=1; lastAction = "TURN_RIGHT"; return "TURN_RIGHT";}
+                        if (botCount > 0 && rightCount > 0 && topCount == 0  && agentDirection != 3)
+                        { agentDirection +=1; lastAction = "TURN_RIGHT"; return "TURN_RIGHT";}
+                        if (botCount > 0 && rightCount > 0 && topCount > 0 && leftCount == 0 && agentDirection == 1)
+			{ agentDirection +=1; lastAction = "TURN_RIGHT"; return "TURN_RIGHT";}
+		}
+		else if (agentStatus.equals("BREEZE"))
+		{
+			if (botCount > 0 && rightCount == 0 && agentDirection != 0)
+                        { agentDirection -=1; lastAction = "TURN_LEFT"; return "TURN_LEFT";}
+                        if (botCount > 0 && rightCount > 0 && topCount == 0  && agentDirection != 3)
+                        { agentDirection +=1; lastAction = "TURN_RIGHT"; return "TURN_RIGHT";}
+                        if (botCount > 0 && rightCount > 0 && topCount > 0 && leftCount == 0 && agentDirection != 2)
+                        { agentDirection +=1; lastAction = "TURN_RIGHT"; return "TURN_RIGHT";}
+			if (botCount > 0 && rightCount > 0 && topCount > 0 && leftCount > 0 && agentDirection != 1)
+			{ agentDirection -= 1; lastAction = "TURN_LEFT"; return "TURN_LEFT";}
+			if (botCount == 0)
+				return "CLIMB";
+			agentStatus = "EXITING";
+		}
+		lastAction = "FORWARD";
+		return "FORWARD";
+	}
 	private void updateState
 	(
 		boolean stench,
